@@ -15,7 +15,7 @@ Description:  This program creates the station processes
 #include <stdlib.h>
 
 #define OK 1
-#define PROGRAM_STN "./stn"  // The program that acts like a station
+#define PROGRAM_STN "stn"  // The program that acts like a station
 #define MAX_STNS 10        // Maximum number of stations
 // Note that the terms reception and transmission are relatif to the station and not the hub
 // Note that the descriptors at the same index in the two arrays are related to the adjacent stations,
