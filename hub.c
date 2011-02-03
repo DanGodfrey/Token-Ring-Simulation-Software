@@ -23,6 +23,8 @@ Description:  This program creates the station processes
 //                                       in the ring.
 int fdsRec[MAX_STNS+1];    // file descriptors for writing ends (reception)
 int fdsTran[MAX_STNS+1];   // file descriptors for reading ends (transmission)
+int pids[MAX_STNS+1];      // pids of stn processes
+
 /* Prototypes */
 void createStation(char *);
 void hubThreads();
@@ -40,34 +42,37 @@ Description:
 -------------------------------------------------------------*/
 int main(int ac, char **av)
 {
-   int ix;      // Array index
-   int first;   // First entry
+   	int ix;      // Array index
+   	int first;   // First entry
 
-   // Initialization
-   fdsRec[0] = -1; // empty list
-   fdsTran[0] = -1; // empty list
-   
-   // Creating the stations
-   createStation("stnA.cfg");
-   createStation("stnB.cfg");
-   createStation("stnC.cfg");
-   createStation("stnD.cfg");
-   // Shift the entries by one in fdsRec
-   first = fdsRec[0];
-   for(ix = 0; fdsRec[ix+1] != -1 ; ix++){
-       fdsRec[ix] = fdsRec[ix+1];
-   }
-   fdsRec[ix] = first;  
- 
-  // fprintf(stderr,"rxfds = {%d,%d,%d,%d}\n",fdsRec[0],fdsRec[1],fdsRec[2],fdsRec[3]);
-  // fprintf(stderr,"txfds = {%d,%d,%d,%d}\n",fdsTran[0],fdsTran[1],fdsTran[2],fdsTran[3]);	
-  // fflush(stderr); 
-// creating threads for the hub
-   hubThreads();  
-   // On return from the function - all threads are terminated.
-   // When the hub process terminates, all write ends of the reception pipes
-   // are closed, which should have the stations terminate.
-   return(0);  // All is done.
+   	// Initialization
+   	fdsRec[0] = -1; // empty list
+   	fdsTran[0] = -1; // empty list
+	pids[0] = -1;
+   	// Creating the stations
+   	createStation("stnA.cfg");
+   	createStation("stnB.cfg");
+   	createStation("stnC.cfg");
+   	createStation("stnD.cfg");
+   	// Shift the entries by one in fdsRec
+   	first = fdsRec[0];
+   	for(ix = 0; fdsRec[ix+1] != -1 ; ix++){
+       	fdsRec[ix] = fdsRec[ix+1];
+   	}
+   	fdsRec[ix] = first;  
+  
+	// creating threads for the hub
+   	hubThreads();  
+   	// On return from the function - all threads are terminated.
+   	// When the hub process terminates, all write ends of the reception pipes
+   	// are closed, which should have the stations terminate.
+	
+	//kill stn processes 
+   	for(ix = 0; pids[ix] != -1 ; ix++){
+		kill(pids[ix],9);
+		pids[ix] = -1;
+	}
+   	return(0);  // All is done.
 }
 
 /*-------------------------------------------------------------
@@ -94,7 +99,7 @@ Description:
 -------------------------------------------------------------*/
 void createStation(char *fileConfig)
 {
-	int txfd[2],rxfd[2], pid, ret; //initiate variables 
+	int txfd[2],rxfd[2], pid, ret, i; //initiate variables 
 	ret = pipe(txfd); //Create rx pipe 
 	if (ret == -1){ //Make sure pipe was created successfully 
 		fprintf(stderr,"Failed to create tx pipe for stn"); //errorz
@@ -117,15 +122,15 @@ void createStation(char *fileConfig)
 		execlp(PROGRAM_STN, "stn",fileConfig,NULL);	
 	} 
 	else { //Parent
-		int i;
 		for(i = 0; fdsRec[i] != -1;i++){
-		
 		}
 		if (i < MAX_STNS){
 			fdsRec[i] = rxfd[1];
 			fdsRec[i+1] = -1;
 			fdsTran[i] = txfd[0];
 			fdsRec[i+1] = -1;
+			pids[i] = pid;
+			pids[i+1] = -1;
 		}
 		else {
 			fprintf(stderr, "Failed to create station. Limit Reached.");//errorz
@@ -167,10 +172,10 @@ void hubThreads()
 	strcpy(buf, "^"); //send token symbol
 	write(fdsRec[0],buf,1);
 	
-   // Sleep a bit
-   sleep(15);
+   	// Sleep a bit
+   	sleep(15);
 
-   // Cancel the threads
+   	// Cancel the threads
 	for(i= 0; i < 4; i ++){
 		pthread_cancel(tid[i]); // bye-bye
 	}
