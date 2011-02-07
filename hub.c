@@ -23,7 +23,6 @@ Description:  This program creates the station processes
 //                                       in the ring.
 int fdsRec[MAX_STNS+1];    // file descriptors for writing ends (reception)
 int fdsTran[MAX_STNS+1];   // file descriptors for reading ends (transmission)
-int pids[MAX_STNS+1];      // pids of stn processes
 
 /* Prototypes */
 void createStation(char *);
@@ -48,7 +47,6 @@ int main(int ac, char **av)
    	// Initialization
    	fdsRec[0] = -1; // empty list
    	fdsTran[0] = -1; // empty list
-	pids[0] = -1;
    	// Creating the stations
    	createStation("stnA.cfg");
    	createStation("stnB.cfg");
@@ -67,11 +65,6 @@ int main(int ac, char **av)
    	// When the hub process terminates, all write ends of the reception pipes
    	// are closed, which should have the stations terminate.
 	
-	//kill stn processes 
-   	for(ix = 0; pids[ix] != -1 ; ix++){
-		kill(pids[ix],9);
-		pids[ix] = -1;
-	}
    	return(0);  // All is done.
 }
 
@@ -118,27 +111,27 @@ void createStation(char *fileConfig)
 	else if (pid == 0){ // child	
 		dup2(rxfd[0],0); //attach to stdin
 		dup2(txfd[1],1); //attach to stdout
-	
+		close(rxfd[1]);
+		close(txfd[0]);
 		execlp(PROGRAM_STN, "stn",fileConfig,NULL);	
 	} 
 	else { //Parent
+		close(rxfd[0]);
+		close(txfd[1]);
 		for(i = 0; fdsRec[i] != -1;i++){
 		}
 		if (i < MAX_STNS){
 			fdsRec[i] = rxfd[1];
 			fdsRec[i+1] = -1;
 			fdsTran[i] = txfd[0];
-			fdsRec[i+1] = -1;
-			pids[i] = pid;
-			pids[i+1] = -1;
+			fdsRec[i+1] = -1;		
 		}
 		else {
 			fprintf(stderr, "Failed to create station. Limit Reached.");//errorz
 			exit(-1);
 		}
 	}
-	close(rxfd[0]);
-	close(txfd[1]);
+	
 }
 
 /*--------------------------------------------------------------
